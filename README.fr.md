@@ -1,111 +1,69 @@
-# Donkey Kong Bananza — Édition Config Légère & iGPU (Performance Max)
+# Donkey Kong Bananza Recompilation PC — Config Légère & Sans GPU Dédié (iGPU)
 
 🌐 **Langues** : [English (README.md)](README.md) | **Français**
 
-> **À qui s'adresse cette édition ?**  
-> Cette version est **conçue exclusivement pour les PC peu puissants, PC portables fins et cartes graphiques intégrées (iGPU)** (comme **AMD Radeon Vega 7 / Vega 8, Ryzen 5 7530U, Intel Iris Xe, UHD Graphics, Steam Deck**).  
-> Elle **privilégie la fluidité (50–60 FPS) et l'économie de VRAM avant la qualité graphique brute** (compression des textures ASTC→BC3, allègement des ombres/cubemaps, bypass SMAA).  
-> *Si vous possédez une grosse carte graphique dédiée (NVIDIA RTX / AMD RX), privilégiez plutôt le projet d'origine [`dkb-pc-recomp`](https://github.com/Lucas-blip-png/dkb-pc-recomp) pour profiter de la qualité visuelle maximale.*
+Installateur Windows en **1 clic** et outil de mise à jour en **3 secondes** pour le portage PC natif de **Donkey Kong Bananza** (`dkb-pc-recomp`).  
+Spécialement optimisé pour jouer en **1080p à 50–60 FPS** sur **PC légers, ordinateurs portables et cartes graphiques intégrées (iGPU) sans GPU dédié**.
 
-Installateur tout-en-un optimisé et outil de mise à jour en 3 secondes pour le portage PC natif de **Donkey Kong Bananza**.
-
-> **Avertissement légal** : Ce dépôt et ses Releases ne contiennent **aucun fichier du jeu Nintendo** (aucun code du jeu, ni ExeFS, ni RomFS, ni clé). Vous devez fournir votre propre dump légal du jeu (fichier `.nup` ou dossiers `ExeFS` + `RomFS`).
+> **Avertissement légal** : Ce dépôt et ses Releases ne contiennent **aucun fichier Nintendo** (aucun code du jeu, ni ExeFS, ni RomFS, ni clé). Vous devez fournir votre propre dump légal (`.nup` ou dossiers `ExeFS` + `RomFS`).
 
 ---
 
-## Sommaire
-1. [Pourquoi cette édition ? (Optimisations incluses)](#-pourquoi-cette-édition--optimisations-incluses)
-2. [Configuration requise](#-configuration-requise)
-3. [Installation depuis zéro (en 1 clic)](#-installation-depuis-zéro-en-1-clic)
-4. [Comment jouer](#-comment-jouer)
-5. [Mises à jour faciles (en ~3 secondes)](#-mises-à-jour-faciles-en-3-secondes)
-6. [Personnalisation (`dkb.ini`)](#-personnalisation-dkbini)
-7. [Foire aux questions (FAQ)](#-foire-aux-questions-faq)
+## À qui s'adresse ce projet ? (Who is this project for?)
+
+Cette édition est conçue spécialement pour :
+- **La recompilation PC de Donkey Kong Bananza** optimisée pour la performance.
+- **Jouer sans carte graphique dédiée** (aucune RTX / RX requise).
+- **Les PC légers et ordinateurs portables fins** (*low-end PC gaming*).
+- **Les puces graphiques intégrées Intel** (Intel Iris Xe, Intel UHD Graphics).
+- **Les puces graphiques intégrées AMD** (AMD Radeon Vega 7, Vega 8, Radeon 680M/780M).
+- **L'optimisation mémoire GPU partagée (UMA)** et **faible VRAM**.
+- **L'optimisation Vulkan** avec Frame Generation 2× intégrée.
+
+> *Si vous avez un gros GPU dédié (NVIDIA RTX / AMD RX) et cherchez la qualité visuelle maximale avant tout, tournez-vous plutôt vers le projet parent [`dkb-pc-recomp`](https://github.com/Lucas-blip-png/dkb-pc-recomp).*
 
 ---
 
-## Pourquoi cette édition ? (Optimisations incluses)
+## Benchmarks Réels (Mesurés)
 
-Sur un PC portable ou un iGPU, la version standard peut saturer la VRAM partagée et chuter sous les 20–25 FPS. Cette édition intègre et pré-compile toutes les optimisations automatiquement :
+Mesurés sur un PC portable réel **sans carte graphique dédiée** :
+- **CPU** : AMD Ryzen 5 7530U (Zen 3, 6 cœurs / 12 threads)
+- **iGPU** : AMD Radeon Vega 7 (7 CU, budget VRAM Vulkan `486 MiB`, 16 Go RAM single-channel)
+- **Version du jeu** : Donkey Kong Bananza `3.2.0` (`dkb458752`)
 
-| Optimisation | Réglage / Technologie | Gain sur PC léger / iGPU |
+| Scène (1080p) | Version standard | Édition Low-Spec (`v1.0.0`) | VRAM utilisée |
+| :--- | :--- | :--- | :--- |
+| **Écran titre / Menus** | 46–53 FPS | **46–60 FPS** | ~345 MiB |
+| **Jeu 3D calme** | 5,6–8,8 FPS (VRAM saturée) | **60,0 FPS** (`over refresh = 0`) | **431 / 486 MiB** |
+| **Transition tunnel** | Gros freezes | **55,7–56,3 FPS** | ~431 MiB |
+| **Pic caverne lourde** | 3,5–5,6 FPS | **46,6–47,6 FPS** (~23–24 FPS internes × FG 2×) | ~431 MiB |
+
+### Tableau des iGPU & État des tests
+
+| GPU intégré (iGPU) | Statut | Performances mesurées / attendues |
 | :--- | :--- | :--- |
-| **Runtime universel** | `-O3 -march=x86-64-v3` | Compatible avec tous les CPU Intel & AMD modernes (depuis ~2015) |
-| **Compression ASTC → BC3** | `astc = gpu`, `astc_bc = 1` | **4× moins de VRAM et de bande passante** utilisée pour les textures |
-| **Gestion mémoire UMA** | `tex_uma_host = 1`, `tex_vram_pressure = 88`, `pool_fini_wait = fence` | Supprime les micro-freezes et crashs liés à la mémoire partagée |
-| **Allègement graphique ciblé** | `shadow_rate = 6`, `cubemap_rate = 4`, `smaa_bypass = 1`, `mvk_upscale_blit = 1` | Énorme gain GPU sans dénaturer l'image |
-| **Replay multi-thread** | `replay_threads = 4` | Répartit les appels Vulkan sur 4 cœurs CPU |
-| **Frame Generation 2×** | `fg_pace` + `fps_limit = 30` + `realtime = 1` | Fluidité **50–60 FPS** en 1080p sur Vega 7 |
-| **Installation prête à jouer** | `dkb.ini`, `Jouer_DKB_Natif.bat`, `dkb.ico`, raccourci `.lnk` | Lancement en priorité CPU Haute et icône haute résolution automatiques |
-| **Mises à jour en 3 secondes** | `.update-cache/` + `Mettre_a_jour_DKB.bat` | Télécharge ~8–25 Mo seulement et relinke en 3 secondes |
+| **AMD Radeon Vega 7 (Ryzen 5 7530U)** | **Testé et vérifié** | **1080p, 47–60 FPS** (FG 2×), ~431 MiB VRAM |
+| **AMD Radeon Vega 8** | Théoriquement compatible | Similaire ou légèrement supérieur au Vega 7 *(retours attendus)* |
+| **Intel Iris Xe** | Théoriquement compatible | Vulkan 1.3 + `x86-64-v3` supportés *(retours attendus)* |
+| **Intel UHD 620 / 630** | Théoriquement compatible | Résolution interne réduite conseillée (`720p` / `960×540`) *(non testé)* |
+| **Steam Deck (APU RDNA 2)** | Théoriquement compatible | Compatible `x86-64-v3` + Vulkan 1.3 *(testé sous Windows)* |
 
 ---
 
-## Configuration requise
+## Matrice de compatibilité
 
-- **Système** : Windows 10 / Windows 11 (64 bits)
-- **Processeur** : Tout CPU `x86-64-v3` (Intel 4e gén.+ ou AMD Ryzen+)
-- **Carte graphique** : GPU compatible Vulkan 1.3 (Radeon Vega 7/8, Intel Iris Xe, NVIDIA GTX/RTX)
-- **Mémoire RAM** : 16 Go recommandés (ou 8 Go avec fichier d'échange Windows étendu)
-- **Espace disque** : ~15–20 Go libres pendant l'installation
-- **Fichiers du jeu** : Votre fichier `.nup` légal, ou vos dossiers `ExeFS` + `RomFS` (versions `1.0.0` et `3.2.0` supportées)
-
----
-
-## Installation depuis zéro (en 1 clic)
-
-1. Rendez-vous sur la page [**Releases**](https://github.com/evolis-game/dkb-lowspec-recomp/releases) et téléchargez **`DKB-LowSpec-Setup-vX.Y.Z.exe`** (~84 Mo).
-2. Double-cliquez sur **`DKB-LowSpec-Setup-vX.Y.Z.exe`**. *(Tout est inclus : aucun logiciel ou compilateur à installer à part.)*
-3. Choisissez :
-   - Votre fichier **`.nup`** (ou dossiers `ExeFS` + `RomFS`)
-   - La **langue du jeu** (ex. Français `fr`)
-   - Le **dossier de destination** (ex. `C:\Jeux\DKB-Recomp`)
-4. Cliquez sur **Install** et laissez l'assistant terminer :
-   - Extraction et vérification du jeu
-   - Recompilation et liaison avec notre runtime optimisé `x86-64-v3`
-   - Préparation du cache de shaders (évite les saccades en jeu)
-   - Création de `dkb.ini`, `Jouer_DKB_Natif.bat`, `Mettre_a_jour_DKB.bat` et du raccourci avec icône
+| Configuration | Catégorie | Statut | Notes |
+| :--- | :--- | :--- | :--- |
+| **Windows 10 / 11 (64 bits) + AMD Vega 7** | **Testé et vérifié** | Fonctionnel | Jeu fluide, sauvegardes, `dkb.exe --selftest` 0 échec |
+| **Windows 10 / 11 + CPU x86-64-v3 + Vulkan 1.3** | **Théoriquement compatible** | Prêt | Runtime compilé en `-O3 -march=x86-64-v3` universel |
+| **Autres iGPU (Iris Xe, UHD, Vega 8)** | **Rapports utilisateurs** | Ouvert | Partagez vos résultats FPS/RAM dans les Issues ! |
 
 ---
 
-## Comment jouer
+## Installation & Mises à jour en 3 secondes
 
-Dans votre dossier d'installation, lancez simplement :
-- **`Donkey Kong Bananza`** (raccourci Windows avec icône — lance en priorité CPU Haute)
-- ou **`Jouer_DKB_Natif.bat`**
-
-> **Astuce** : Appuyez sur **`F1`** en jeu pour ouvrir le menu des réglages.
-
----
-
-## Mises à jour faciles (en ~3 secondes)
-
-Lorsqu'une nouvelle mise à jour est disponible, vous n'avez **PAS besoin** de votre `.nup` ni d'attendre 45 minutes :
-
-1. Double-cliquez sur **`Mettre_a_jour_DKB.bat`** dans votre dossier de jeu.
-2. L'outil va automatiquement :
-   - Vérifier la dernière version sur [GitHub Releases](https://github.com/evolis-game/dkb-lowspec-recomp/releases)
-   - Télécharger uniquement le petit patch (`dkb-lowspec-patch-*.zip`, ~8–25 Mo)
-   - Mettre à jour `dkb.ini` **sans effacer votre langue ni vos réglages**
-   - Relinker `dkb.exe` en **~3 secondes** grâce au dossier `.update-cache/`
-   - Vérifier le bon fonctionnement avec `dkb.exe --selftest` (`0 failures`)
-
-*(Note : ne supprimez pas le dossier `.update-cache` (~207 Mo) dans votre dossier de jeu si vous voulez profiter des mises à jour instantanées.)*
-
----
-
-## Personnalisation (`dkb.ini`)
-
-Tous les réglages sont dans `dkb.ini`. Quelques options utiles :
-- `fps_limit = 30` (Base 30 FPS doublée à 60 FPS fluides par le Frame Gen)
-- `astc_bc = 1` (Passez à `0` uniquement sur une grosse carte graphique 8+ Go de VRAM)
-- `shadow_rate = 6` (Met à jour les ombres 1 frame sur 6 ; baissez à `2` ou `1` sur un GPU plus puissant)
-- `smaa_bypass = 1` (Passez à `0` pour réactiver l'anticrénelage SMAA)
-
----
-
-## Foire aux questions (FAQ)
-
-- **Windows SmartScreen affiche « Windows a protégé votre ordinateur »** : cliquez sur **Informations complémentaires → Exécuter quand même** (l'exécutable n'est pas signé numériquement car c'est un projet open-source).
-- **Puis-je supprimer mon fichier `.nup` après l'installation ?** Oui, une fois l'installation terminée, tout le jeu est autonome dans votre dossier de destination.
-- **Comment changer la langue après coup ?** Ouvrez `dkb.ini` et modifiez `lang = fr` (ou `en-US`, `es`, `de`, `ja`, etc.).
+1. Téléchargez **`DKB-LowSpec-Setup-v1.0.0.exe`** (`83,7 Mo`) dans [**Releases**](https://github.com/evolis-game/donkey-kong-bananza-pc-lowspec/releases).
+2. Double-cliquez dessus : une barre de progression extrait les outils, puis l'installateur s'ouvre directement en **Français** (`FR / EN / RU`).
+3. Choisissez votre fichier **`.nup`** *(ou cochez **Mode avancé** pour des dossiers `ExeFS`/`RomFS`)*, la **langue** et le **dossier**, puis cliquez sur **Installer**.
+4. Pour jouer, lancez **`Donkey Kong Bananza`** ou **`Jouer_DKB_Natif.bat`**.
+5. Pour mettre à jour plus tard en ~3 secondes sans `.nup`, double-cliquez sur **`Mettre_a_jour_DKB.bat`**.
