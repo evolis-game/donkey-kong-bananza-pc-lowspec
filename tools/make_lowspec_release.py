@@ -112,11 +112,6 @@ def patch_sfx_icon(sfx_src: Path, ico_path: Path, sfx_dst: Path):
     if not h:
         raise ctypes.WinError()
     try:
-        # Remove original 7z icons (1..10) and group icon (101)
-        for old_id in range(1, 11):
-            k32.UpdateResourceW(h, ctypes.c_void_p(3), ctypes.c_void_p(old_id), 0, None, 0)
-        k32.UpdateResourceW(h, ctypes.c_void_p(14), ctypes.c_void_p(101), 0, None, 0)
-
         grp = bytearray(struct.pack('<HHH', reserved, itype, count))
         for idx in range(count):
             w, he, cc, res, planes, bpp, size, offset = struct.unpack_from('<BBBBHHII', data, 6 + idx * 16)
