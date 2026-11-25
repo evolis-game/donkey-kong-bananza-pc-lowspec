@@ -1,0 +1,54 @@
+name: Build & Publish DKB Low-Spec Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download base DKB-Setup release (toolchain & embedded python)
+        shell: pwsh
+        run: |
+          $release = Invoke-RestMethod "https://api.github.com/repos/Lucas-blip-png/dkb-pc-recomp/releases/latest"
+          $asset = $release.assets | Where-Object { $_.name -like "*Setup*.zip" -or $_.name -like "*windows*.zip" } | Select-Object -First 1
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "base-setup.zip"
+          Expand-Archive -Path "base-setup.zip" -DestinationPath "base-setup"
+
+      - name: Fetch 7zSD.sfx module
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/chrislake/7zsfxmm/releases/download/1.7.1.3901/7zsd_extra_171_3901.7z" -OutFile "sfx.7z"
+          7z e "sfx.7z" "7zsd_All_x64.sfx" -o"." -y
+          Rename-Item "7zsd_All_x64.sfx" "7zSD.sfx"
+
+      - name: Build libtotkrt.a, patch zip, and 7z SFX installer
+        shell: pwsh
+        run: |
+          $setupRoot = (Get-ChildItem "base-setup" -Directory | Select-Object -First 1).FullName
+          if (-not (Test-Path "$setupRoot\python\python.exe")) { $setupRoot = (Resolve-Path "base-setup").Path }
+          $ver = if ($env:GITHUB_REF_NAME -match '^v') { $env:GITHUB_REF_NAME.TrimStart('v') } else { (Get-Content VERSION -Raw).Trim() }
+          python tools/make_lowspec_release.py `
+            --setup-base $setupRoot `
+            --out dist `
+            --version $ver `
+            --update-repo $env:GITHUB_REPOSITORY `
+            --7z "C:\Program Files\7-Zip\7z.exe" `
+            --sfx "7zSD.sfx"
+
+      - name: Upload GitHub Release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-github-release@v2
+        with:
+          files: |
+            dist/DKB-LowSpec-Setup-*.exe
+            dist/dkb-lowspec-patch-*.zip

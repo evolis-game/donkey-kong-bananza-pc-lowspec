@@ -1,0 +1,27 @@
+# Données du jeu, caches et binaires générés (hors dépôt Git / >100 Mo)
+*.exe
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.nup
+*.nsp
+*.xci
+*.bin
+*.sav
+
+romfs/
+exefs/
+aoc-1/
+shader-cache/
+profile/
+dkb-custom-build/
+runtime/deps/
+llvm/
+python/
+temp_dump/
+logs/
+dist/
+build/
