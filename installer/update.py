@@ -7,7 +7,7 @@ import os
 import re
 import urllib.request
 
-API = 'https://api.github.com/repos/evolis-game/dkb-lowspec-recomp/releases/latest'
+API = 'https://api.github.com/repos/evolis-game/donkey-kong-bananza-pc-lowspec/releases/latest'
 TIMEOUT = 3
 
 

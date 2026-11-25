@@ -17,7 +17,7 @@ import urllib.request
 import zipfile
 from pathlib import Path
 
-DEFAULT_REPO = os.environ.get('DKB_UPDATE_REPO', 'evolis-game/dkb-lowspec-recomp')
+DEFAULT_REPO = os.environ.get('DKB_UPDATE_REPO', 'evolis-game/donkey-kong-bananza-pc-lowspec')
 TIMEOUT = 15
 LINK_LIBS = [
     '-lpsapi', '-lbcrypt', '-luser32', '-lgdi32', '-ldwmapi', '-limm32',

@@ -1,9 +1,13 @@
-# Donkey Kong Bananza — Low-Spec & iGPU PC Edition
+# Donkey Kong Bananza — Low-End PC & iGPU Performance Edition
 
 🌐 **Languages**: **English** | [Français (README.fr.md)](README.fr.md)
 
-An optimized, beginner-friendly, **one-click installer & fast updater** for the native PC static recompilation port of **Donkey Kong Bananza** (`dkb-pc-recomp`).  
-Specifically tuned for **low-end PCs, laptops, handhelds, and integrated GPUs (iGPUs)** such as **AMD Radeon Vega 7 / Vega 8, Ryzen 5 7530U, Intel Iris Xe, and Steam Deck**, delivering smooth **1080p 50–60 FPS** gameplay with minimal VRAM usage.
+> **Who is this for?**  
+> This edition is **exclusively designed for low-end PCs, thin laptops, handhelds, and integrated GPUs (iGPUs)** (such as **AMD Radeon Vega 7 / Vega 8, Ryzen 5 7530U, Intel Iris Xe, UHD Graphics, Steam Deck**) that struggle with VRAM and GPU bandwidth.  
+> It **aggressively prioritizes FPS, smoothness, and low VRAM usage over maximum visual fidelity** (using ASTC→BC3 texture compression, reduced shadow/cubemap refresh rates, and SMAA bypass).  
+> *If you have a powerful dedicated GPU (NVIDIA RTX / AMD RX), use the standard upstream [`dkb-pc-recomp`](https://github.com/Lucas-blip-png/dkb-pc-recomp) build for full native visual quality.*
+
+An optimized, beginner-friendly, **one-click installer & 3-second fast updater** for the native PC static recompilation port of **Donkey Kong Bananza**, delivering smooth **1080p 50–60 FPS** on modest hardware.
 
 > **Legal Notice**: This repository and its Releases contain **NO copyrighted Nintendo files** (no game code, no ExeFS, no RomFS, no keys). You must provide your own legally dumped copy of the game (`.nup` file or dumped `ExeFS` + `RomFS` folders).
 

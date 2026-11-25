@@ -1,9 +1,13 @@
-# Donkey Kong Bananza — Édition PC Légers & iGPU
+# Donkey Kong Bananza — Édition Config Légère & iGPU (Performance Max)
 
 🌐 **Langues** : [English (README.md)](README.md) | **Français**
 
-Installateur tout-en-un optimisé et outil de mise à jour rapide pour le portage PC natif de **Donkey Kong Bananza** (`dkb-pc-recomp`).  
-Spécialement configuré pour les **PC légers, ordinateurs portables et cartes graphiques intégrées (iGPU)** comme l'**AMD Ryzen 5 7530U / Radeon Vega 7, Vega 8, Intel Iris Xe et Steam Deck**, offrant **50–60 FPS en 1080p** avec une consommation VRAM réduite.
+> **À qui s'adresse cette édition ?**  
+> Cette version est **conçue exclusivement pour les PC peu puissants, PC portables fins et cartes graphiques intégrées (iGPU)** (comme **AMD Radeon Vega 7 / Vega 8, Ryzen 5 7530U, Intel Iris Xe, UHD Graphics, Steam Deck**).  
+> Elle **privilégie la fluidité (50–60 FPS) et l'économie de VRAM avant la qualité graphique brute** (compression des textures ASTC→BC3, allègement des ombres/cubemaps, bypass SMAA).  
+> *Si vous possédez une grosse carte graphique dédiée (NVIDIA RTX / AMD RX), privilégiez plutôt le projet d'origine [`dkb-pc-recomp`](https://github.com/Lucas-blip-png/dkb-pc-recomp) pour profiter de la qualité visuelle maximale.*
+
+Installateur tout-en-un optimisé et outil de mise à jour en 3 secondes pour le portage PC natif de **Donkey Kong Bananza**.
 
 > **Avertissement légal** : Ce dépôt et ses Releases ne contiennent **aucun fichier du jeu Nintendo** (aucun code du jeu, ni ExeFS, ni RomFS, ni clé). Vous devez fournir votre propre dump légal du jeu (fichier `.nup` ou dossiers `ExeFS` + `RomFS`).
 
