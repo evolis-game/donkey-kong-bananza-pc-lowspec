@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 import webbrowser
 from pathlib import Path
@@ -37,7 +38,7 @@ GLYPH = {PENDING: '\u25cb', RUNNING: '\u25b6', DONE: '\u2714', SKIPPED: '\u2013'
 BARK, FRAME, BORDER, FIELD, HOVER = '#2a1a0e', '#3b2614', '#6b4a2a', '#1d1109', '#4d331b'
 BANANA, CREAM, MUTED = '#f6c52b', '#f3e9d2', '#b8a888'
 RED, RED_TEXT, GREEN, GREEN_TEXT = '#c8281e', '#ff8a7a', '#3f8f3a', '#6fcf68'
-BRAND = 'DONKEY KONG BANANZA  ·  PC RECOMP'
+BRAND = 'DONKEY KONG BANANZA  ·  LOW-SPEC EDITION'
 COLOR = {PENDING: MUTED, RUNNING: BANANA, DONE: GREEN_TEXT, SKIPPED: MUTED, FAILED: RED_TEXT}
 PAD = 14
 
@@ -187,6 +188,8 @@ class App:
         self.body.pack(fill='both', expand=True)
         self.frames = {'form': self.build_form(), 'run': self.build_run(), 'finish': self.build_finish()}
         self.vars['lang'].set(self.lang_label(self.lang_code))
+        if game == 'bananza' and not self.vars['dest'].get():
+            self.vars['dest'].set(str(Path.home() / 'Desktop' / 'DKB-LowSpec'))
         self.vars['dest'].trace_add('write', lambda *_: self.refresh_form())
         self.show('form')
         if check_updates:
@@ -300,29 +303,61 @@ class App:
         grid = ttk.Frame(f)
         grid.pack(fill='x')
         grid.columnconfigure(1, weight=1)
-        rows = (('base', 'ui.base', 'ui.pick_game'), ('update', 'ui.update', 'ui.pick_update'),
-                ('keys', 'ui.keys', 'ui.pick_keys'))
-        if self.game == 'bananza':
-            rows = (('nup', 'dkb.ui.nup', 'dkb.ui.pick_nup'), ('exefs', 'dkb.ui.exefs', 'dkb.ui.pick_exefs'),
-                    ('romfs', 'dkb.ui.romfs', 'dkb.ui.pick_romfs'), ('package', 'dkb.ui.package', 'dkb.ui.pick_package'))
         self.form_rows = {}
-        for i, (name, label_id, pick_id) in enumerate(rows):
-            lab = self.label(grid, label_id)
-            lab.grid(row=i, column=0, sticky='w', pady=4, padx=(0, 10))
-            ttk.Entry(grid, textvariable=self.vars[name]).grid(row=i, column=1, sticky='ew', pady=4)
-            b = self.button(grid, 'ui.browse', lambda n=name, p=pick_id: self.pick_file(n, p))
-            b.grid(row=i, column=2, padx=(8, 0))
-            self.form_rows[name] = lab
-        i = len(rows)
-        self.label(grid, 'ui.game_language').grid(row=i, column=0, sticky='w', pady=4)
-        self.lang_box = ttk.Combobox(grid, textvariable=self.vars['lang'], state='readonly', width=30)
-        self.lang_box.grid(row=i, column=1, sticky='w', pady=4)
-        self.lang_touched = False
-        self.lang_box.bind('<<ComboboxSelected>>', lambda _e: setattr(self, 'lang_touched', True))
-        self.fill_languages()
-        self.label(grid, 'ui.dest').grid(row=i + 1, column=0, sticky='w', pady=4)
-        ttk.Entry(grid, textvariable=self.vars['dest']).grid(row=i + 1, column=1, sticky='ew', pady=4)
-        self.button(grid, 'ui.browse', self.pick_dest).grid(row=i + 1, column=2, padx=(8, 0))
+        self.adv_widgets = []
+        if self.game == 'bananza':
+            # Primary simple flow: .nup file + language + install folder
+            lab = self.label(grid, 'dkb.ui.nup')
+            lab.grid(row=0, column=0, sticky='w', pady=4, padx=(0, 10))
+            ttk.Entry(grid, textvariable=self.vars['nup']).grid(row=0, column=1, sticky='ew', pady=4)
+            self.button(grid, 'ui.browse', lambda: self.pick_file('nup', 'dkb.ui.pick_nup')).grid(row=0, column=2, padx=(8, 0))
+            self.form_rows['nup'] = lab
+
+            self.label(grid, 'ui.game_language').grid(row=1, column=0, sticky='w', pady=4)
+            self.lang_box = ttk.Combobox(grid, textvariable=self.vars['lang'], state='readonly', width=30)
+            self.lang_box.grid(row=1, column=1, sticky='w', pady=4)
+            self.lang_touched = False
+            self.lang_box.bind('<<ComboboxSelected>>', lambda _e: setattr(self, 'lang_touched', True))
+            self.fill_languages()
+
+            self.label(grid, 'ui.dest').grid(row=2, column=0, sticky='w', pady=4)
+            ttk.Entry(grid, textvariable=self.vars['dest']).grid(row=2, column=1, sticky='ew', pady=4)
+            self.button(grid, 'ui.browse', self.pick_dest).grid(row=2, column=2, padx=(8, 0))
+
+            self.adv_var = tk.BooleanVar(value=False)
+            adv_chk = ttk.Checkbutton(grid, variable=self.adv_var, command=self.toggle_advanced)
+            self.bind_text(adv_chk, 'text', 'dkb.ui.advanced')
+            adv_chk.grid(row=3, column=0, columnspan=3, sticky='w', pady=(8, 2))
+
+            adv_rows = [('exefs', 'dkb.ui.exefs', 'dkb.ui.pick_exefs'), ('romfs', 'dkb.ui.romfs', 'dkb.ui.pick_romfs')]
+            if self.layout.dev:
+                adv_rows.append(('package', 'dkb.ui.package', 'dkb.ui.pick_package'))
+            for idx, (name, label_id, pick_id) in enumerate(adv_rows, start=4):
+                w_lab = self.label(grid, label_id)
+                w_ent = ttk.Entry(grid, textvariable=self.vars[name])
+                w_btn = self.button(grid, 'ui.browse', lambda n=name, p=pick_id: self.pick_file(n, p))
+                self.form_rows[name] = w_lab
+                self.adv_widgets.append((idx, w_lab, w_ent, w_btn))
+        else:
+            rows = (('base', 'ui.base', 'ui.pick_game'), ('update', 'ui.update', 'ui.pick_update'),
+                    ('keys', 'ui.keys', 'ui.pick_keys'))
+            for i, (name, label_id, pick_id) in enumerate(rows):
+                lab = self.label(grid, label_id)
+                lab.grid(row=i, column=0, sticky='w', pady=4, padx=(0, 10))
+                ttk.Entry(grid, textvariable=self.vars[name]).grid(row=i, column=1, sticky='ew', pady=4)
+                b = self.button(grid, 'ui.browse', lambda n=name, p=pick_id: self.pick_file(n, p))
+                b.grid(row=i, column=2, padx=(8, 0))
+                self.form_rows[name] = lab
+            i = len(rows)
+            self.label(grid, 'ui.game_language').grid(row=i, column=0, sticky='w', pady=4)
+            self.lang_box = ttk.Combobox(grid, textvariable=self.vars['lang'], state='readonly', width=30)
+            self.lang_box.grid(row=i, column=1, sticky='w', pady=4)
+            self.lang_touched = False
+            self.lang_box.bind('<<ComboboxSelected>>', lambda _e: setattr(self, 'lang_touched', True))
+            self.fill_languages()
+            self.label(grid, 'ui.dest').grid(row=i + 1, column=0, sticky='w', pady=4)
+            ttk.Entry(grid, textvariable=self.vars['dest']).grid(row=i + 1, column=1, sticky='ew', pady=4)
+            self.button(grid, 'ui.browse', self.pick_dest).grid(row=i + 1, column=2, padx=(8, 0))
         self.update_hint = ttk.Label(f, wraplength=620, justify='left')
         self.update_hint.pack(anchor='w', pady=(8, 0))
         self.form_error = ttk.Label(f, style='Err.TLabel', wraplength=620, justify='left')
@@ -330,6 +365,19 @@ class App:
         if self.game != 'bananza':
             self.label(f, 'ui.keys_private', wraplength=620, justify='left').pack(anchor='w', pady=(8, 0))
         return f
+
+    def toggle_advanced(self):
+        show = self.adv_var.get()
+        for row_idx, w_lab, w_ent, w_btn in self.adv_widgets:
+            if show:
+                w_lab.grid(row=row_idx, column=0, sticky='w', pady=4, padx=(0, 10))
+                w_ent.grid(row=row_idx, column=1, sticky='ew', pady=4)
+                w_btn.grid(row=row_idx, column=2, padx=(8, 0))
+            else:
+                w_lab.grid_forget()
+                w_ent.grid_forget()
+                w_btn.grid_forget()
+        self.fit()
 
     def build_run(self):
         f = ttk.Frame(self.body)
@@ -347,7 +395,9 @@ class App:
         self.phase_label = ttk.Label(f, wraplength=620, justify='left')
         self.phase_label.pack(anchor='w')
         self.bar = ttk.Progressbar(f, mode='determinate', maximum=1000)
-        self.bar.pack(fill='x', pady=(4, 6))
+        self.bar.pack(fill='x', pady=(4, 2))
+        self.eta_label = ttk.Label(f, style='Sub.TLabel', wraplength=620, justify='left')
+        self.eta_label.pack(anchor='w', pady=(0, 4))
         self.space_label = ttk.Label(f, wraplength=620, justify='left')
         self.space_label.pack(anchor='w')
         self.warn_label = ttk.Label(f, wraplength=620, justify='left', style='Warn.TLabel')
@@ -445,6 +495,9 @@ class App:
     def begin(self, command, cwd):
         self.model = Model(DKB_STEP_ORDER if self.game == 'bananza' else None)
         self.model.dest = self.vars['dest'].get().strip()
+        self.phase_key = None
+        self.phase_started = time.monotonic()
+        self.run_started = time.monotonic()
         self.clear_log()
         self.build_step_rows(self.model.steps)
         self.cancel_button.configure(state='normal')
@@ -527,15 +580,32 @@ class App:
             text = ''
         self.phase_label.configure(text=text)
         frac = m.fraction()
+        key = (m.current, m.phase)
+        if key != getattr(self, 'phase_key', None):
+            self.phase_key = key
+            self.phase_started = time.monotonic()
+        total_steps = max(1, len(m.steps))
+        done_steps = sum(1 for s in m.steps if m.states.get(s) in (DONE, SKIPPED))
+        overall_frac = (done_steps + (frac or 0.0)) / total_steps
+        pct = min(100, max(0, int(round((frac if frac is not None else overall_frac) * 100))))
         if frac is None:
             if str(self.bar.cget('mode')) != 'indeterminate':
                 self.bar.configure(mode='indeterminate')
                 self.bar.start(15)
+            self.eta_label.configure(text=self.cat('ui.eta_estimating', pct=pct))
         else:
             if str(self.bar.cget('mode')) == 'indeterminate':
                 self.bar.stop()
                 self.bar.configure(mode='determinate')
             self.bar.configure(value=frac * 1000)
+            elapsed = time.monotonic() - getattr(self, 'phase_started', time.monotonic())
+            if frac >= 0.02 and elapsed >= 1.5:
+                rem = max(0, int(round(elapsed * (1.0 - frac) / frac)))
+                mins, secs = divmod(rem, 60)
+                eta_str = f'{mins} min {secs:02d} s' if mins else f'{secs} s'
+                self.eta_label.configure(text=self.cat('ui.eta_remaining', pct=pct, eta=eta_str))
+            else:
+                self.eta_label.configure(text=self.cat('ui.eta_estimating', pct=pct))
         self.space_label.configure(text=m.need_text(self.cat))
         self.warn_label.configure(text='\n'.join(self.cat(i, **p) for i, p in m.warnings))
         self.fit()   # new step rows and warnings make the screen taller
