@@ -82,7 +82,7 @@ def stage_setup_folder(repo: Path, setup_base: Path, lib: Path, stage: Path, ver
     if update_repo:
         (stage / 'update_repo.txt').write_text(update_repo + '\n', encoding='utf-8')
 
-    bat = '@echo off\r\ncd /d "%~dp0"\r\nstart "" "python\\pythonw.exe" -m installer\r\n'
+    bat = '@echo off\r\ncd /d "%~dp0"\r\nstart "" "python\\pythonw.exe" -m installer.gui\r\n'
     (stage / 'Lancer_Installateur.bat').write_text(bat, encoding='utf-8')
     print(f'Staged portable setup folder: {stage}')
 
@@ -92,9 +92,11 @@ def build_sfx(stage: Path, out_exe: Path, seven_z: Path, sfx_stub: Path):
     cfg = out_exe.with_suffix('.sfx.txt')
     cfg.write_text(
         ';!@Install@!UTF-8!\n'
-        'Title="DKB Low-Spec Setup"\n'
-        'GUIMode="2"\n'
-        'RunProgram="python\\pythonw.exe -m installer"\n'
+        'Title="DKB Low-Spec Setup — Extraction"\n'
+        'ExtractTitle="DKB Low-Spec Setup"\n'
+        'ExtractDialogText="Extraction des outils en cours..."\n'
+        'GUIMode="0"\n'
+        'RunProgram="python\\pythonw.exe -m installer.gui"\n'
         ';!@InstallEnd@!\n',
         encoding='utf-8',
     )
