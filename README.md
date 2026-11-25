@@ -1,40 +1,108 @@
-# DKB Low-Spec Recomp (PC Légers & iGPU)
+# Donkey Kong Bananza — Low-Spec & iGPU PC Edition
 
-Version optimisée et clé-en-main du portage PC natif de **Donkey Kong Bananza** (basée sur `dkb-pc-recomp`), spécialement configurée pour offrir une expérience fluide (**1080p, 50–60 FPS**) sur les configurations légères et cartes graphiques intégrées (ex. **AMD Ryzen 5 7530U / Radeon Vega 7**, iGPU avec VRAM partagée).
+🌐 **Languages**: **English** | [Français (README.fr.md)](README.fr.md)
 
-> **Avertissement légal** : Ce dépôt et ses Releases ne contiennent **aucun fichier du jeu** (aucun code Nintendo, ni ExeFS, ni RomFS, ni clé). Vous devez fournir votre propre dump légal du jeu (`.nup` ou dossiers `ExeFS`/`RomFS`).
+An optimized, beginner-friendly, **one-click installer & fast updater** for the native PC static recompilation port of **Donkey Kong Bananza** (`dkb-pc-recomp`).  
+Specifically tuned for **low-end PCs, laptops, handhelds, and integrated GPUs (iGPUs)** such as **AMD Radeon Vega 7 / Vega 8, Ryzen 5 7530U, Intel Iris Xe, and Steam Deck**, delivering smooth **1080p 50–60 FPS** gameplay with minimal VRAM usage.
 
----
-
-## Fonctionnalités & Optimisations incluses
-
-- **Runtime universel `x86-64-v3` (`-O3`)** : compatible avec tous les processeurs Intel et AMD modernes.
-- **Compression ASTC -> BC3 (`astc_bc = 1`)** : divise par 4 l'empreinte VRAM et la bande passante mémoire sur iGPU.
-- **Gestion mémoire UMA optimisée (`tex_uma_host = 1`, `tex_vram_pressure = 88`, `pool_fini_wait = fence`)** : élimine les saccades et saturations mémoire sur VRAM partagée.
-- **Allègement graphique intelligent** :
-  - Décimation temporelle des ombres (`shadow_rate = 6`) et des cubemaps (`cubemap_rate = 4`).
-  - Bypass SMAA (`smaa_bypass = 1`) et blit rapide (`mvk_upscale_blit = 1`).
-  - Répartition multi-thread du replay NVN (`replay_threads = 4`).
-- **Frame Generation & Pacing** intégrés dans [dkb.ini.example](dkb.ini.example) pour atteindre 50–60 FPS fluides en jeu.
-- **Package prêt à jouer** : crée automatiquement `dkb.ini`, `Jouer_DKB_Natif.bat` (priorité CPU Haute), l'icône `dkb.ico` et le raccourci Windows `Donkey Kong Bananza.lnk`.
-- **Mises à jour en ~3 secondes** : grâce au cache d'objets (`.update-cache/`), les futures mises à jour ne téléchargent que ~8–25 Mo et relinkent `dkb.exe` sans ré-extraire le jeu ni recompiler les 274 fichiers C.
+> **Legal Notice**: This repository and its Releases contain **NO copyrighted Nintendo files** (no game code, no ExeFS, no RomFS, no keys). You must provide your own legally dumped copy of the game (`.nup` file or dumped `ExeFS` + `RomFS` folders).
 
 ---
 
-## Installation depuis zéro (1 seul exécutable)
-
-1. Téléchargez **`DKB-LowSpec-Setup-vX.Y.Z.exe`** depuis l'onglet [**Releases**](../../releases).
-2. Double-cliquez dessus pour lancer l'installateur graphique.
-3. Sélectionnez votre fichier **`.nup`** (ou dossier ExeFS + RomFS), choisissez la langue du jeu et le dossier d'installation.
-4. Patientez pendant l'extraction, la compilation initiale et la préparation des shaders.
-5. Lancez le jeu via le raccourci **`Donkey Kong Bananza`** ou **`Jouer_DKB_Natif.bat`**.
+## Table of Contents
+1. [Why This Edition? (Key Optimizations)](#-why-this-edition-key-optimizations)
+2. [System Requirements](#-system-requirements)
+3. [How to Install (From Scratch in 1 Click)](#-how-to-install-from-scratch-in-1-click)
+4. [How to Play](#-how-to-play)
+5. [How to Update (3-Second Fast Updater)](#-how-to-update-3-second-fast-updater)
+6. [Configuration & Tweaking (`dkb.ini`)](#-configuration--tweaking-dkbini)
+7. [Troubleshooting / FAQ](#-troubleshooting--faq)
 
 ---
 
-## Mises à jour faciles (en ~3 secondes)
+## Why This Edition? (Key Optimizations)
 
-Lorsqu'une nouvelle version est publiée sur GitHub Releases :
-1. Double-cliquez simplement sur **`Mettre_a_jour_DKB.bat`** dans votre dossier de jeu.
-2. L'outil vérifie la dernière version, télécharge uniquement le petit patch (`dkb-lowspec-patch-*.zip`), met à jour `dkb.ini` **sans effacer votre langue**, relinke `dkb.exe` en quelques secondes et vérifie le binaire (`--selftest`).
+Standard builds can stutter, run out of shared VRAM, or struggle to reach 30 FPS on integrated graphics. This edition pre-configures and compiles all low-spec optimizations automatically:
 
-*(Note : le dossier `.update-cache/` d'environ 207 Mo dans le dossier du jeu permet cette mise à jour instantanée. Ne le supprimez pas si vous souhaitez profiter des mises à jour rapides.)*
+| Feature | Setting / Tech | Benefit on Low-End / iGPU |
+| :--- | :--- | :--- |
+| **Universal CPU Build** | `-O3 -march=x86-64-v3` | Works out-of-the-box on all modern Intel & AMD CPUs (2015+) |
+| **ASTC to BC3 Compression** | `astc = gpu`, `astc_bc = 1` | **4× less VRAM & memory bandwidth** used for textures |
+| **UMA / Shared VRAM Tuning** | `tex_uma_host = 1`, `tex_vram_pressure = 88`, `pool_fini_wait = fence` | Prevents crashes and micro-stutters on laptops with shared memory |
+| **Smart Visual Lightening** | `shadow_rate = 6`, `cubemap_rate = 4`, `smaa_bypass = 1`, `mvk_upscale_blit = 1` | Huge GPU savings with minimal visual impact |
+| **Multi-Threaded Replay** | `replay_threads = 4` | Splits Vulkan draw recording across 4 CPU threads |
+| **Frame Generation 2×** | Built-in `fg_pace` + `fps_limit = 30` + `realtime = 1` | Smooth **50–60 FPS** output at 1080p on Vega 7 |
+| **Ready-to-Play Desktop Setup** | Auto `dkb.ini`, `Jouer_DKB_Natif.bat`, `dkb.ico`, `.lnk` shortcut | High CPU priority launcher & high-res icon created automatically |
+| **3-Second Fast Updates** | `.update-cache/` + `Mettre_a_jour_DKB.bat` | Updates download only ~8–25 MB and relink in 3 seconds |
+
+---
+
+## System Requirements
+
+- **OS**: Windows 10 / Windows 11 (64-bit)
+- **CPU**: Any x86-64-v3 CPU (Intel Haswell / 4th Gen+ or AMD Ryzen / Excavator+)
+- **GPU**: Vulkan 1.3 compatible GPU (AMD Radeon Vega 7/8, RDNA, Intel Iris Xe, NVIDIA GTX/RTX)
+- **RAM**: 16 GB recommended (or 8 GB + large Windows pagefile)
+- **Disk Space**: ~15–20 GB free during installation
+- **Game Input**: Your own legal `.nup` file, or dumped `ExeFS` + `RomFS` folders (Supported versions: `1.0.0` and `3.2.0`)
+
+---
+
+## How to Install (From Scratch in 1 Click)
+
+1. Go to the [**Releases page**](https://github.com/evolis-game/dkb-lowspec-recomp/releases) and download **`DKB-LowSpec-Setup-vX.Y.Z.exe`** (~84 MB).
+2. Double-click **`DKB-LowSpec-Setup-vX.Y.Z.exe`**. *(It extracts automatically and opens the setup window — no Python, Visual Studio, or compiler installation required!)*
+3. Select:
+   - Your **`.nup`** file (or your `ExeFS` + `RomFS` folders)
+   - Your preferred **in-game language**
+   - The **destination folder** where you want the game installed (e.g. `C:\Games\DKB-Recomp`)
+4. Click **Install** and wait for the process to complete:
+   - Extracts and verifies game data
+   - Lifts & compiles the game code and links it with the pre-optimized `x86-64-v3` runtime
+   - Translates and pre-warms shaders (prevents in-game shader stutter)
+   - Applies all low-spec settings (`dkb.ini`), high-priority launcher, icon, and shortcut
+5. Done!
+
+---
+
+## How to Play
+
+In your installation folder, launch the game using either:
+- **`Donkey Kong Bananza`** (Windows shortcut with custom icon — launches in High CPU priority)
+- **`Jouer_DKB_Natif.bat`** (batch launcher with High CPU priority)
+
+> **Tip**: Press **`F1`** in-game at any time to open the settings overlay.
+
+---
+
+## How to Update (3-Second Fast Updater)
+
+You do **NOT** need your `.nup` file or to wait 45 minutes recompiling when a new optimization update is released:
+
+1. Double-click **`Mettre_a_jour_DKB.bat`** inside your game folder.
+2. It automatically:
+   - Checks [GitHub Releases](https://github.com/evolis-game/dkb-lowspec-recomp/releases) for the latest version
+   - Downloads only the small patch archive (`dkb-lowspec-patch-*.zip`, ~8–25 MB)
+   - Merges new optimization settings into `dkb.ini` **while keeping your language & custom settings**
+   - Relinks `dkb.exe` in **~3 seconds** using `.update-cache/`
+   - Runs `dkb.exe --selftest` to verify everything works (`0 failures`)
+
+*(Note: Keep the `.update-cache` folder (~207 MB) inside your game directory if you want 3-second updates.)*
+
+---
+
+## Configuration & Tweaking (`dkb.ini`)
+
+All performance settings are stored in `dkb.ini` in your game folder. Key options you can adjust:
+- `fps_limit = 30` (Base target; paired with built-in Frame Gen for 60 FPS display)
+- `astc_bc = 1` (Set to `0` only if you have a dedicated GPU with 8+ GB VRAM and want uncompressed textures)
+- `shadow_rate = 6` (Update shadows every 6 frames; lower to `2` or `1` on stronger GPUs)
+- `smaa_bypass = 1` (Set to `0` to re-enable SMAA anti-aliasing on stronger GPUs)
+
+---
+
+## Troubleshooting / FAQ
+
+- **Windows SmartScreen says "Windows protected your PC"**: Click **More info → Run anyway** (the executable is unsigned because it is an open-source community build).
+- **Can I delete my original `.nup` file after installing?** Yes! Once the installation finishes, the game is completely self-contained in your destination folder.
+- **How do I change the language later?** Open `dkb.ini` and change `lang = en-US` to your code (`fr`, `es`, `de`, `ja`, `it`, `pt-BR`, etc.).
