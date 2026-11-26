@@ -485,13 +485,15 @@ def ninja_file(gen, out, mods, pool_depth, skip=(), prebuilt=False, runtime_lib=
     if runtime_lib:
         # Whole archive: the runtime's weak defaults (nvn_procs.c, nvn_api_core.c, vk_sync.c) would otherwise satisfy
         # references before the linker pulls the members with the strong definitions, which would stay out of totk.exe.
-        # The library's hash rides in the command: a lib unpacked with old zip times is only an implicit input and
-        # would not relink the exe on file times alone.
+        # Keep the hash in a stamp file (never as `# hash` on the command line, which breaks CreateProcess on Windows).
         rule = 'link_lib'
         lib_sha = hashlib.sha256(runtime_lib.read_bytes()).hexdigest()[:16] if runtime_lib.is_file() else 'missing'
+        stamp = out / '.rtlib.sha256'
+        if exe.is_file() and (not stamp.is_file() or stamp.read_text(encoding='utf-8').strip() != lib_sha):
+            exe.unlink(missing_ok=True)
+        write_if_changed(stamp, lib_sha + '\n')
         lines += ['', 'rule link_lib',
-                  f'  command = $cc $ldflags @$out.rsp -Wl,--whole-archive {cmd_path(runtime_lib)} -Wl,--no-whole-archive $libs -o $out'
-                  f' # {lib_sha}',
+                  f'  command = $cc $ldflags @$out.rsp -Wl,--whole-archive {cmd_path(runtime_lib)} -Wl,--no-whole-archive $libs -o $out',
                   '  rspfile = $out.rsp', '  rspfile_content = $in_newline', '  description = LINK $out']
     lines += ['', f'build {ninja_path(exe)}: {rule} ' + ' '.join(ninja_path(o) for o in every) +
               (f' | {ninja_path(runtime_lib)}' if runtime_lib else ''),
@@ -930,7 +932,8 @@ def main():
 
     cpus = os.cpu_count() or 1
     budget = min(MEM_BUDGET, int(total_ram() * 0.8))
-    jobs = args.jobs or max(1, min(cpus, budget // JOB_MEM))
+    ram_cap = max(1, min(cpus, budget // JOB_MEM))
+    jobs = min(args.jobs, ram_cap) if args.jobs else ram_cap
     missing = [n for n in names if n not in hashes]
     if missing:
         sys.exit(f'{expected}: no exefs_sha256 for {missing}')
