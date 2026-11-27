@@ -49,7 +49,7 @@ static void VKAPI_PTR on_allocate(VmaAllocator a, uint32_t type, VkDeviceMemory 
 
 const VmaDeviceMemoryCallbacks *vk_headroom_callbacks(void) {
     static const VmaDeviceMemoryCallbacks cb = {.pfnAllocate = on_allocate};
-    H.on = !cfg_get("TOTK_VRAM_HEADROOM") || cfg_bool("TOTK_VRAM_HEADROOM");
+    H.on = cfg_get("TOTK_VRAM_HEADROOM") && cfg_bool("TOTK_VRAM_HEADROOM");
     return H.on ? &cb : NULL;
 }
 

@@ -529,14 +529,17 @@ static Tex *create_tex(const tex_t *t, const TexKey *k, int defer_init) {
             if (host_bits) rt_log("vk: UMA sampled-texture host heap tiering on (TOTK_TEX_UMA_HOST=%d, mask %#x)", uma_host, host_bits);
         }
         int use_host = 0;
-        if (host_bits && !nvn_gpu_only(k->addr) && !ds && !block_views) {
+        if (host_bits && !ds && !block_views) {
             int cbw = 0, cbh = 0;
             int is_comp = f.vk != f.ideal || (nvn_fmt_bpb(d->format, &cbw, &cbh) && cbw >= 4 && cbh >= 4);
             if (uma_host >= 2 && (is_comp || !(usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))) use_host = 1;
             else {
                 uint64_t used = 0, budget = 0; int exact = 0;
-                if (vk_mem_vram(&used, &budget, &exact) && budget && used >= budget / 100 * 65 &&
-                    (is_comp || !(usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))) use_host = 1;
+                if (vk_mem_vram(&used, &budget, &exact) && budget) {
+                    if (used >= budget / 100 * 74) use_host = 1;   // hard-cap DEVICE_LOCAL below ~360/486 MiB
+                    else if (used >= budget / 100 * 50 &&
+                             (is_comp || !(usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT))) use_host = 1;
+                }
             }
         }
         VkResult r = VK_ERROR_INITIALIZATION_FAILED;
@@ -670,7 +673,7 @@ static void destroy_tex(Tex *e) {
 // finalizes and initializes transient textures every frame, so a released entry is mostly taken back within frames.
 // Dropping all of them at once when the count passed 4096 destroyed thousands of images in one frame: 333-422 ms
 // frames every 40-50 s on a GTX 1050 Ti, then the textures still in use were created and uploaded again.
-#define RELEASED_MAX 2048
+#define RELEASED_MAX 256
 static void sweep_released(void) {
     if (tex_frozen) return;
     while (nreleased > RELEASED_MAX && rel_head) destroy_tex(rel_head);
@@ -682,7 +685,7 @@ static void sweep_released(void) {
 // that come back intact are dropped: mirrored ones the GPU never wrote, re-uploaded from their storage. A render target
 // lives only in its image; dropping it brought the texture back empty (black flashes in a Depths boss fight, ~170
 // "left uninitialised" aliases a minute).
-#define PRESSURE_STEP 32
+#define PRESSURE_STEP 64
 static int vram_pressure = -1;
 static uint64_t n_pressure_drops;
 
@@ -693,14 +696,15 @@ static void sweep_pressure(void) {   // tex_lock held
         if (vram_pressure < 0 || vram_pressure > 100) vram_pressure = 90;
         rt_log("vk: released textures under VRAM pressure: %s%d%%", vram_pressure ? "dropped above " : "off", vram_pressure);
     }
-    if (!vram_pressure || !rel_head || submit_epoch & 7 || tex_frozen) return;   // the budget query every 8 submits
+    if (!vram_pressure || !rel_head || submit_epoch & 1 || tex_frozen) return;   // the budget query every 2 submits
     uint64_t used, budget;
     int exact;
     if (!vk_mem_vram(&used, &budget, &exact) || used <= budget / 100 * (uint64_t)vram_pressure) return;
+    int emergency = used > budget / 100 * ((uint64_t)vram_pressure + 5);
     int dropped = 0;
     for (Tex *e = rel_head, *next; e && dropped < PRESSURE_STEP; e = next) {
         next = e->rel_next;
-        if (!e->pub.mirrored || e->pub.gpu_owned || e->gpu_dirty) continue;
+        if (!emergency && (!e->pub.mirrored || e->pub.gpu_owned || e->gpu_dirty)) continue;
         destroy_tex(e);
         dropped++, n_pressure_drops++;
     }

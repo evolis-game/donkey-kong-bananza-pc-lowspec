@@ -18,7 +18,7 @@ Cette édition est conçue spécialement pour :
 - **Les puces graphiques intégrées Intel** (Intel Iris Xe, Intel UHD Graphics).
 - **Les puces graphiques intégrées AMD** (AMD Radeon Vega 7, Vega 8, Radeon 680M/780M).
 - **L'optimisation mémoire GPU partagée (UMA)** et **faible VRAM**.
-- **L'optimisation Vulkan** avec Frame Generation 2× intégrée.
+- **L'optimisation Vulkan** avec Frame Generation 2× / **3×** intégrée.
 
 > *Si vous avez un gros GPU dédié (NVIDIA RTX / AMD RX) et cherchez la qualité visuelle maximale avant tout, tournez-vous plutôt vers le projet parent [`dkb-pc-recomp`](https://github.com/Lucas-blip-png/dkb-pc-recomp).*
 
@@ -31,18 +31,17 @@ Mesurés sur un PC portable réel **sans carte graphique dédiée** :
 - **iGPU** : AMD Radeon Vega 7 (7 CU, budget VRAM Vulkan `486 MiB`, 16 Go RAM single-channel)
 - **Version du jeu** : Donkey Kong Bananza `3.2.0` (`dkb458752`)
 
-| Scène (1080p) | Version standard | Édition Low-Spec (`v1.0.0`) | VRAM utilisée |
+| Scène (1080p) | Version standard | Édition Low-Spec (`v1.1.0`) | Empreinte VRAM / RAM |
 | :--- | :--- | :--- | :--- |
-| **Écran titre / Menus** | 46–53 FPS | **46–60 FPS** | ~345 MiB |
-| **Jeu 3D calme** | 5,6–8,8 FPS (VRAM saturée) | **60,0 FPS** (`over refresh = 0`) | **431 / 486 MiB** |
-| **Transition tunnel** | Gros freezes | **55,7–56,3 FPS** | ~431 MiB |
-| **Pic caverne lourde** | 3,5–5,6 FPS | **46,6–47,6 FPS** (~23–24 FPS internes × FG 2×) | ~431 MiB |
+| **Écran titre / Menus** | 46–53 FPS | **50–60 FPS** | ~315 MiB VRAM |
+| **Jeu 3D calme** | 5,6–8,8 FPS (VRAM saturée) | **52–74 FPS** (`FG 3×`, `over refresh = 0`) | **315 / 486 MiB** VRAM, **4,4 Go** commit |
+| **Scène lourde / Transition** | 3,5–10,9 FPS (`hitch 15–25`) | **38,5–44,4 FPS** (`hitch 0–2`) | **315 MiB** VRAM, **1,5 Go** RAM invité |
 
 ### Tableau des iGPU & État des tests
 
 | GPU intégré (iGPU) | Statut | Performances mesurées / attendues |
 | :--- | :--- | :--- |
-| **AMD Radeon Vega 7 (Ryzen 5 7530U)** | **Testé et vérifié** | **1080p, 47–60 FPS** (FG 2×), ~431 MiB VRAM |
+| **AMD Radeon Vega 7 (Ryzen 5 7530U)** | **Testé et vérifié** | **1080p, 38,5–74,0 FPS** (`FG 3×`), **315 MiB** VRAM |
 | **AMD Radeon Vega 8** | Théoriquement compatible | Similaire ou légèrement supérieur au Vega 7 *(retours attendus)* |
 | **Intel Iris Xe** | Théoriquement compatible | Vulkan 1.3 + `x86-64-v3` supportés *(retours attendus)* |
 | **Intel UHD 620 / 630** | Théoriquement compatible | Résolution interne réduite conseillée (`720p` / `960×540`) *(non testé)* |
@@ -62,7 +61,7 @@ Mesurés sur un PC portable réel **sans carte graphique dédiée** :
 
 ## Installation & Mises à jour en 3 secondes
 
-1. Téléchargez **`DKB-LowSpec-Setup-v1.0.0.exe`** (`83,7 Mo`) dans [**Releases**](https://github.com/evolis-game/donkey-kong-bananza-pc-lowspec/releases).
+1. Téléchargez **`DKB-LowSpec-Setup-v1.1.0.exe`** dans [**Releases**](https://github.com/evolis-game/donkey-kong-bananza-pc-lowspec/releases).
 2. Double-cliquez dessus : une barre de progression extrait les outils, puis l'installateur s'ouvre directement en **Français** (`FR / EN / RU`).
 3. Choisissez votre fichier **`.nup`** *(ou cochez **Mode avancé** pour des dossiers `ExeFS`/`RomFS`)*, la **langue** et le **dossier**, puis cliquez sur **Installer**.
 4. Pour jouer, lancez **`Donkey Kong Bananza`** ou **`Jouer_DKB_Natif.bat`**.

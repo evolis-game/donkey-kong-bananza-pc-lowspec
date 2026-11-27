@@ -7,7 +7,7 @@
 # Frame rate limit: 30, 40, 45, 60, 90, 120, 144, any whole rate from 30 to 360, display (the refresh rate of the
 # window's monitor) or unlimited (no wait; with vk_present = fifo the monitor still caps it). Above 60 and unlimited
 # are experimental and need realtime = 1. Changes while the game runs take effect at once.
-fps_limit = 30
+fps_limit = 25
 # Older key, read only while fps_limit is unset: fps60 = 0 means a limit of 30.
 # fps60 = 1
 # Real-time frame step: game speed follows the clock instead of the frame count.
@@ -64,14 +64,15 @@ astc_bc = 1
 # A new texture created over a live texture's memory starts with that content instead of empty.
 # tex_alias = 1
 # Drop or release cached textures when VRAM usage rises above this percentage (0 to 100; 0 = off). Default: 90.
-tex_vram_pressure = 88
+tex_vram_pressure = 72
+vram_headroom = 0
 tex_uma_host = 1
 pool_fini_wait = fence
-replay_threads = 4
+replay_threads = 2
 mvk_upscale_blit = 1
 smaa_bypass = 1
-shadow_rate = 6
-cubemap_rate = 4
+shadow_rate = 8
+cubemap_rate = 6
 # Host zstd decoder in place of the game's (0 = the game's), and a check that decodes every call both ways and logs
 # the differences (1 = on; slow).
 # zstd_native = 1
@@ -180,7 +181,7 @@ smaa = off
 # overlay is drawn on every shown frame and is never interpolated. No frame is made after a gap of over 100 ms, when the
 # picture's size changes, for the game's own HDR picture, when the display's refresh is below the doubled rate, or unless
 # vk_present is mailbox or immediate. Changes while the game runs take effect at once.
-frame_gen = 2x
+frame_gen = 3x
 # Picture shape when the window's shape differs from the game resolution's (a 16:9 picture in a 21:9 fullscreen
 # window): fit, the default, keeps the shape, with black bars at the sides or above and below, so a 16:9 game in a wider
 # window is no longer stretched as it used to be; stretch fills the window. Changes while the game runs take effect at
@@ -250,12 +251,16 @@ pad_device = 030068bad11800000094000000016800:1ee9aa5cc5142dea:s60c73f9e48ff72fc
 # pad_fullscreen_hold = 0
 # Gamepad motion controls (0 = off) and vibration (0 = off).
 # motion = 1
+motion = 0
 # rumble = 1
 # Rumble strength in percent (0 to 300; 0 = off) and the exponent on the amplitude (0.2 to 1.5; lower = weak pulses
 # stronger, 1 = linear). rumble_triggers = 1 also drives the impulse triggers of an Xbox pad.
 # rumble_strength = 130
+rumble_strength = 0
 # rumble_curve = 0.6
+rumble_curve = 0.3
 # rumble_triggers = 0
+rumble_triggers = 1
 # Which gamepad button is Switch A: nintendo (by position: east A, south B, west Y, north X), xbox (south A, east B,
 # west X, north Y, as an Xbox pad labels them; cross A on a PlayStation pad) or auto (nintendo for a pad with Nintendo
 # labels, xbox for the others). xbox_prompts: the buttons as nintendo, and the game's prompts swapped to the Xbox

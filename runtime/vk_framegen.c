@@ -54,12 +54,14 @@ static struct {
     VkCommandPool pool;
     VkCommandBuffer cb;
     VkFence fence;
-    Image hist[2], luma_img[2], flow_img[2], made;
+    Image hist[2], luma_img[2], flow_img[2], made, made2;
     uint32_t w, h;        // the crop size the images were made for; 0 = none
     VkFormat fmt_ok;      // the last window texture format found to have BLIT_SRC
     VkFormat fmt_bad;     // the last one found without it
     int cur;              // the history image the next frame is copied into; the other holds the frame before
     int shown;            // the history image holding the newest frame (what vk_fg_show presents as the real one)
+    int mult;             // 2 for 2x, 3 for 3x
+    int show_mult;        // effective multiplier for the current job (2 or 3)
     int have_prev, fresh;
     uint64_t last_at;     // when the previous job reached vk_fg_record; 0 = none
     int64_t interval;     // the game's frame interval, fg_pace_interval
@@ -142,6 +144,7 @@ static int make_image(VkCtx *c, Image *i, VkFormat fmt, uint32_t w, uint32_t h, 
 static void free_images(VkCtx *c) {
     for (int i = 0; i < 2; i++) free_image(c, &S.hist[i]), free_image(c, &S.luma_img[i]), free_image(c, &S.flow_img[i]);
     free_image(c, &S.made);
+    free_image(c, &S.made2);
     S.w = S.h = 0;
     S.have_prev = 0;
 }
@@ -243,7 +246,8 @@ static int ensure_images(VkCtx *c, uint32_t w, uint32_t h) {
     free_images(c);
     uint32_t qw = (w + 3) / 4, qh = (h + 3) / 4, cw = (qw + 3) / 4, ch = (qh + 3) / 4;
     const VkImageUsageFlags work = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    int ok = make_image(c, &S.made, HIST_FMT, w, h, work | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+    int ok = make_image(c, &S.made, HIST_FMT, w, h, work | VK_IMAGE_USAGE_TRANSFER_SRC_BIT) &&
+             make_image(c, &S.made2, HIST_FMT, w, h, work | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
     for (int i = 0; i < 2 && ok; i++)
         ok = make_image(c, &S.hist[i], HIST_FMT, w, h, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
                                                           VK_IMAGE_USAGE_TRANSFER_SRC_BIT) &&
@@ -255,7 +259,7 @@ static int ensure_images(VkCtx *c, uint32_t w, uint32_t h) {
         return fail(c, msg);
     }
     S.w = w, S.h = h, S.fresh = 1;
-    rt_log("fg: frame generation 2x on (experimental): made at %ux%u, history RGBA8", w, h);
+    rt_log("fg: frame generation %dx on (experimental): made at %ux%u, history RGBA8", S.mult ? S.mult : 2, w, h);
     return 1;
 }
 
@@ -270,9 +274,9 @@ static void full_barrier(VkCommandBuffer cb) {
 
 // The first command buffer after (re)allocation moves every image to GENERAL, where they stay.
 static void to_general(VkCommandBuffer cb) {
-    const Image *all[] = {&S.hist[0], &S.hist[1], &S.luma_img[0], &S.luma_img[1], &S.flow_img[0], &S.flow_img[1], &S.made};
-    VkImageMemoryBarrier2 b[7];
-    for (int i = 0; i < 7; i++)
+    const Image *all[] = {&S.hist[0], &S.hist[1], &S.luma_img[0], &S.luma_img[1], &S.flow_img[0], &S.flow_img[1], &S.made, &S.made2};
+    VkImageMemoryBarrier2 b[8];
+    for (int i = 0; i < 8; i++)
         b[i] = (VkImageMemoryBarrier2){.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
                                        .srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                                        .dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
@@ -281,7 +285,7 @@ static void to_general(VkCommandBuffer cb) {
                                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, .image = all[i]->img,
                                        .subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1}};
-    VkDependencyInfo d = {.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .imageMemoryBarrierCount = 7, .pImageMemoryBarriers = b};
+    VkDependencyInfo d = {.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO, .imageMemoryBarrierCount = 8, .pImageMemoryBarriers = b};
     vkCmdPipelineBarrier2(cb, &d);
 }
 
@@ -316,7 +320,9 @@ static int record(VkImage src, VkFormat fmt, int w, int h, const int crop[4]) {
     VkCtx *c = vk_ctx();
     if (S.dead || !c) return 0;
     if (gfx_window_closing()) return 0;   // the exit is about to free everything below
-    if (strcmp(cfg_value("TOTK_FRAME_GEN"), "2x")) {   // off, or turned off while running: hand the images back
+    const char *fg_cfg = cfg_value("TOTK_FRAME_GEN");
+    int mult = !strcmp(fg_cfg, "3x") ? 3 : !strcmp(fg_cfg, "2x") ? 2 : 0;
+    if (!mult) {   // off, or turned off while running: hand the images back
         if (S.w) {
             vk_queue_lock();
             vkDeviceWaitIdle(c->device);
@@ -324,8 +330,10 @@ static int record(VkImage src, VkFormat fmt, int w, int h, const int crop[4]) {
             free_images(c);
         }
         S.last_at = 0;
+        S.mult = 0;
         return 0;
     }
+    S.mult = mult;
     // the crop as vk_present_image reads it
     int cx = 0, cy = 0, cw = w, ch = h;
     if (crop && crop[2] > 0 && crop[3] > 0) cx = crop[0], cy = crop[1], cw = crop[2], ch = crop[3];
@@ -373,8 +381,12 @@ static int record(VkImage src, VkFormat fmt, int w, int h, const int crop[4]) {
     if (S.w && ((uint32_t)cw != S.w || (uint32_t)ch != S.h)) S.crop++;
     if (hitch) S.hitch++;
     if (!ensure_images(c, (uint32_t)cw, (uint32_t)ch)) return 0;
+    int eff_mult = S.mult;
     int blend = S.have_prev && !hitch;   // ensure_images cleared have_prev on a new size
-    if (blend && fg_pace_over_refresh(S.interval, gfx_window_refresh_hz())) blend = 0, S.over++;   // the display cannot show 2x
+    if (blend && eff_mult == 3 && fg_pace_over_refresh_mult(S.interval, gfx_window_refresh_hz(), 3))
+        eff_mult = 2;   // drop cleanly from 3x to 2x if real rate rises above ~refresh/3
+    if (blend && fg_pace_over_refresh_mult(S.interval, gfx_window_refresh_hz(), eff_mult))
+        blend = 0, S.over++;   // the display cannot show 2x
     if (!blend && !hitch && !S.fresh && !S.have_prev) S.no_hist++;
     S.real++;
 
@@ -406,11 +418,17 @@ static int record(VkImage src, VkFormat fmt, int w, int h, const int crop[4]) {
         pass(cb, &S.flow, in, S.flow_img[0].view, fw, fh, NULL, 0);
         in[0] = (VkDescriptorImageInfo){S.nearest, S.flow_img[0].view, G};
         pass(cb, &S.median, in, S.flow_img[1].view, fw, fh, NULL, 0);
-        const float t = 0.5f;
         in[0] = (VkDescriptorImageInfo){S.linear, S.hist[prev].view, G};
         in[1] = (VkDescriptorImageInfo){S.linear, S.hist[cur].view, G};
         in[2] = (VkDescriptorImageInfo){S.nearest, S.flow_img[1].view, G};
-        pass(cb, &S.synth, in, S.made.view, uw, uh, &t, sizeof t);
+        if (eff_mult == 3) {
+            const float t1 = 1.0f / 3.0f, t2 = 2.0f / 3.0f;
+            pass(cb, &S.synth, in, S.made.view, uw, uh, &t1, sizeof t1);
+            pass(cb, &S.synth, in, S.made2.view, uw, uh, &t2, sizeof t2);
+        } else {
+            const float t = 0.5f;
+            pass(cb, &S.synth, in, S.made.view, uw, uh, &t, sizeof t);
+        }
     }
     // the last barrier orders later writes to the game's texture (the next submissions) after our blit's read of it
     vkEndCommandBuffer(cb);
@@ -428,8 +446,9 @@ static int record(VkImage src, VkFormat fmt, int w, int h, const int crop[4]) {
     }
     S.shown = cur;
     S.cur = prev;
+    S.show_mult = eff_mult;
     S.have_prev = 1;
-    if (blend) S.made_n++;
+    if (blend) S.made_n += (uint64_t)(eff_mult - 1);
     return blend;
 }
 
@@ -442,26 +461,50 @@ int vk_fg_record(VkImage src, VkFormat fmt, int w, int h, const int crop[4]) {
 
 void vk_fg_show(int (*pending)(void), uint64_t frame) {
     plat_mutex_lock(&fgl);
-    VkImage made = S.made.img, real = S.hist[S.shown].img;
-    int w = (int)S.w, h = (int)S.h;
+    VkImage made = S.made.img, made2 = S.made2.img, real = S.hist[S.shown].img;
+    int w = (int)S.w, h = (int)S.h, mult = S.show_mult > 2 ? 3 : 2;
     int64_t interval = S.interval;
     plat_mutex_unlock(&fgl);
     if (!made || !real) return;   // released meanwhile
     vk_present_image(made, VK_IMAGE_LAYOUT_GENERAL, HIST_FMT, w, h, NULL);
     uint64_t made_at = kern_now_ns();
     if (frame) vk_thumbs_frame(frame);   // the thumbnail and the dump name the game's frame, not the made one
-    vk_present_blit(real, VK_IMAGE_LAYOUT_GENERAL, HIST_FMT, w, h, NULL);
-    // the game's frame goes out half an interval after the made one, or at once when a newer job waits: the present
-    // thread must not hold it back (vk_backend.c present_hold)
-    uint64_t due = (uint64_t)fg_pace_due((int64_t)made_at, interval), now;
     int cut = 0;
-    while ((now = kern_now_ns()) < due) {
-        if (pending()) {
-            cut = 1;
-            break;
+    uint64_t now = made_at, due = (uint64_t)fg_pace_due_step((int64_t)made_at, interval, 1, mult);
+    if (mult == 3 && made2) {
+        while ((now = kern_now_ns()) < due) {
+            if (pending()) {
+                cut = 1;
+                break;
+            }
+            uint64_t step = due - now;
+            plat_wait_ns(step > 1000000 ? 1000000 : step);
         }
-        uint64_t step = due - now;
-        plat_wait_ns(step > 1000000 ? 1000000 : step);
+        if (!cut) {
+            vk_present_image(made2, VK_IMAGE_LAYOUT_GENERAL, HIST_FMT, w, h, NULL);
+            due = (uint64_t)fg_pace_due_step((int64_t)made_at, interval, 2, 3);
+            while ((now = kern_now_ns()) < due) {
+                if (pending()) {
+                    cut = 1;
+                    break;
+                }
+                uint64_t step = due - now;
+                plat_wait_ns(step > 1000000 ? 1000000 : step);
+            }
+        }
+        vk_present_blit(real, VK_IMAGE_LAYOUT_GENERAL, HIST_FMT, w, h, NULL);
+    } else {
+        vk_present_blit(real, VK_IMAGE_LAYOUT_GENERAL, HIST_FMT, w, h, NULL);
+        // the game's frame goes out half an interval after the made one, or at once when a newer job waits
+        due = (uint64_t)fg_pace_due((int64_t)made_at, interval);
+        while ((now = kern_now_ns()) < due) {
+            if (pending()) {
+                cut = 1;
+                break;
+            }
+            uint64_t step = due - now;
+            plat_wait_ns(step > 1000000 ? 1000000 : step);
+        }
     }
     vk_present_flip();
     plat_mutex_lock(&fgl);

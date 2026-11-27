@@ -203,7 +203,7 @@ int frame_step_realtime(void) { return step_word != NULL; }
 // interval from the patched sites each frame. With the real-time step the pacer holds frames to the limit; above 60
 // only the pacer changes, as the step has no lower bound. Without it the game steps whole 60 Hz vsyncs and the pacer
 // follows the game's interval, so the limit stops at 60.
-#define LIMIT_MIN_HZ 30
+#define LIMIT_MIN_HZ 20
 #define LIMIT_MAX_HZ 360
 #define LIMIT_NONE (-2)   // limit_hz for unlimited; 0 is display and -1 is "not read yet"
 static int fps60_set = -2;
@@ -219,7 +219,7 @@ static int limit_parse(void) {
     char *end;
     long n = strtol(e, &end, 10);
     if (!*end && n >= LIMIT_MIN_HZ && n <= LIMIT_MAX_HZ) return (int)n;
-    rt_log("frame rate: TOTK_FPS_LIMIT=%s is not 30..360, display or unlimited; 60", e);
+    rt_log("frame rate: TOTK_FPS_LIMIT=%s is not 20..360, display or unlimited; 60", e);
     return 60;
 }
 

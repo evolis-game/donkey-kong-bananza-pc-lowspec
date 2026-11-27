@@ -2799,7 +2799,7 @@ void vk_upload_end(void) { plat_rmutex_unlock(&cmd_lock); }
 // the headroom thread (vk_headroom.c) or a burst of uploads held every staging allocation of the render thread: one
 // took 47-50 ms, for a few bytes, in the first frame after a save load. Larger buffers than a block go to the default
 // pool.
-#define STG_BLOCK (64ull << 20)
+#define STG_BLOCK (16ull << 20)
 #define STG_MIN_BLOCKS 2
 static VmaPool stg_pool;
 static int stg_pool_tried;

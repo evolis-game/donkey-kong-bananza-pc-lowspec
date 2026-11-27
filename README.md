@@ -19,7 +19,7 @@ This edition is built for players looking for:
 - **AMD integrated graphics** (AMD Radeon Vega 7, Vega 8, Radeon 680M/780M).
 - **Shared GPU memory optimization** (UMA laptop memory tuning).
 - **Low VRAM optimization** (4× smaller texture footprint via ASTC→BC3).
-- **Vulkan performance optimization** & built-in 2× Frame Generation.
+- **Vulkan performance optimization** & built-in 2× / **3× Frame Generation**.
 
 > *If you have a powerful dedicated GPU (RTX / RX) and want maximum raw visual fidelity, use the upstream [`dkb-pc-recomp`](https://github.com/Lucas-blip-png/dkb-pc-recomp) project instead.*
 
@@ -32,18 +32,17 @@ Tested on a real thin-and-light laptop with **no dedicated GPU**:
 - **iGPU**: AMD Radeon Vega 7 (7 CU, 486 MiB local Vulkan budget, 16 GB RAM single-channel)
 - **Game Version**: Donkey Kong Bananza `3.2.0` (`dkb458752`)
 
-| Scenario (1080p) | Stock Defaults | Low-Spec Edition (`v1.0.0`) | VRAM Usage |
+| Scenario (1080p) | Stock Defaults | Low-Spec Edition (`v1.1.0`) | VRAM / RAM Footprint |
 | :--- | :--- | :--- | :--- |
-| **Title / Menus** | 46–53 FPS | **46–60 FPS** | ~345 MiB |
-| **Calm 3D Gameplay** | 5.6–8.8 FPS (VRAM full) | **60.0 FPS** (`over refresh = 0`) | **431 / 486 MiB** |
-| **Tunnel Transition** | Heavy stutter | **55.7–56.3 FPS** | ~431 MiB |
-| **Heavy Cavern Peak** | 3.5–5.6 FPS | **46.6–47.6 FPS** (~23–24 FPS internal × 2× FG) | ~431 MiB |
+| **Title / Menus** | 46–53 FPS | **50–60 FPS** | ~315 MiB VRAM |
+| **Calm 3D Gameplay** | 5.6–8.8 FPS (VRAM full) | **52–74 FPS** (`FG 3×`, `over refresh = 0`) | **315 / 486 MiB** VRAM, **4.4 GB** commit |
+| **Heavy Scene / Transition** | 3.5–10.9 FPS (`hitch 15–25`) | **38.5–44.4 FPS** (`hitch 0–2`) | **315 MiB** VRAM, **1.5 GB** guest resident |
 
 ### iGPU Comparison & Reporting Status
 
 | Integrated GPU (iGPU) | Status | Measured / Expected Performance |
 | :--- | :--- | :--- |
-| **AMD Radeon Vega 7 (Ryzen 5 7530U)** | **Tested & Verified** | **1080p, 47–60 FPS** (FG 2×), ~431 MiB VRAM |
+| **AMD Radeon Vega 7 (Ryzen 5 7530U)** | **Tested & Verified** | **1080p, 38.5–74.0 FPS** (`FG 3×`), **315 MiB** VRAM |
 | **AMD Radeon Vega 8** | Theoretically compatible | Expected similar or slightly faster than Vega 7 *(community reports welcome)* |
 | **Intel Iris Xe** | Theoretically compatible | Vulkan 1.3 + `x86-64-v3` supported *(community reports welcome)* |
 | **Intel UHD 620 / 630** | Theoretically compatible | Lower internal res recommended (`720p` / `960×540`) *(untested)* |
@@ -67,10 +66,10 @@ Tested on a real thin-and-light laptop with **no dedicated GPU**:
 | :--- | :--- | :--- |
 | **Universal CPU Build** | `-O3 -march=x86-64-v3` | Compatible with all modern Intel & AMD CPUs (Haswell / Ryzen+) |
 | **ASTC to BC3 Compression** | `astc = gpu`, `astc_bc = 1` | **4× less VRAM & memory bandwidth** for textures |
-| **UMA / Shared VRAM Tuning** | `tex_uma_host = 1`, `tex_vram_pressure = 88`, `pool_fini_wait = fence` | Eliminates shared-memory stutters and VRAM overflow |
-| **Smart GPU Lightening** | `shadow_rate = 6`, `cubemap_rate = 4`, `smaa_bypass = 1`, `mvk_upscale_blit = 1` | Huge iGPU frame-time savings |
-| **Multi-Threaded Replay** | `replay_threads = 4` | Splits Vulkan command recording across 4 CPU threads |
-| **Frame Generation 2×** | Built-in `fg_pace` + `fps_limit = 30` + `realtime = 1` | Smooth **50–60 FPS** output at 1080p |
+| **UMA / Shared VRAM Tuning** | `tex_uma_host = 1`, `tex_vram_pressure = 72`, `vram_headroom = 0`, `pool_fini_wait = fence` | Eliminates WDDM paging (`315 MiB` VRAM, saves `1.3+ GB` RAM commit) |
+| **Smart GPU Lightening** | `shadow_rate = 8`, `cubemap_rate = 6`, `smaa_bypass = 1`, `mvk_upscale_blit = 1` | Huge iGPU frame-time savings |
+| **Multi-Threaded Replay** | `replay_threads = 2` | Optimal thread balance on 6-core laptops without lock contention |
+| **Frame Generation 2× / 3×** | Built-in `fg_pace` + `frame_gen = 3x` + `fps_limit = 25` + `realtime = 1` | Smooth **40–60+ FPS** output at 1080p even from ~18–25 real FPS |
 | **Desktop Ready** | Auto `dkb.ini`, `Jouer_DKB_Natif.bat`, `dkb.ico`, `.lnk` shortcut | High CPU priority launcher & custom icon created automatically |
 | **3-Second Fast Updates** | `.update-cache/` + `Mettre_a_jour_DKB.bat` | Updates download only ~8.4 MB and relink in ~3 seconds |
 
@@ -78,8 +77,8 @@ Tested on a real thin-and-light laptop with **no dedicated GPU**:
 
 ## How to Install (From Scratch in 1 Click)
 
-1. Download **`DKB-LowSpec-Setup-v1.0.0.exe`** (~83.7 MB) from [**Releases**](https://github.com/evolis-game/donkey-kong-bananza-pc-lowspec/releases).
-2. Double-click **`DKB-LowSpec-Setup-v1.0.0.exe`** *(if SmartScreen warns, click More info → Run anyway)*.
+1. Download **`DKB-LowSpec-Setup-v1.1.0.exe`** from [**Releases**](https://github.com/evolis-game/donkey-kong-bananza-pc-lowspec/releases).
+2. Double-click **`DKB-LowSpec-Setup-v1.1.0.exe`** *(if SmartScreen warns, click More info → Run anyway)*.
 3. A progress window unpacks the tools, then opens the installer (`FR` / `EN` / `RU` supported).
 4. Select:
    - Your **`.nup`** file *(or tick **Advanced** to select existing `ExeFS` and `RomFS` folders)*
